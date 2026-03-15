@@ -17,9 +17,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ------------------------------------------------------------------
     # orders
-    # ------------------------------------------------------------------
     op.create_table(
         "orders",
         sa.Column("order_id",    sa.Text, primary_key=True, nullable=False),
@@ -40,12 +38,9 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("quantity > 0", name="ck_orders_quantity_positive"),
     )
-    # Index: look up all orders for a given customer efficiently
     op.create_index("idx_orders_customer_id", "orders", ["customer_id"])
 
-    # ------------------------------------------------------------------
     # ledger
-    # ------------------------------------------------------------------
     op.create_table(
         "ledger",
         sa.Column("ledger_id", sa.Text, primary_key=True, nullable=False),
@@ -63,12 +58,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    # Index: join ledger → orders efficiently
     op.create_index("idx_ledger_order_id", "ledger", ["order_id"])
 
-    # ------------------------------------------------------------------
     # idempotency_records
-    # ------------------------------------------------------------------
     op.create_table(
         "idempotency_records",
         sa.Column("idempotency_key", sa.Text, primary_key=True, nullable=False),

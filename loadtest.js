@@ -2,45 +2,34 @@ import http from "k6/http";
 import { check, sleep } from "k6";
 import { Counter, Rate, Trend } from "k6/metrics";
 
-// ---------------------------------------------------------------------------
 // Custom metrics
-// ---------------------------------------------------------------------------
 const orderCreated    = new Counter("orders_created");
 const orderFetched    = new Counter("orders_fetched");
 const errorRate       = new Rate("error_rate");
 const createLatency   = new Trend("create_order_latency", true);
 const fetchLatency    = new Trend("fetch_order_latency",  true);
 
-// ---------------------------------------------------------------------------
 // Test configuration
-// Stages: ramp up → sustained load → ramp down
-// ---------------------------------------------------------------------------
 export const options = {
   stages: [
-    { duration: "30s", target: 20 },   // ramp up to 20 VUs over 30s
-    { duration: "60s", target: 20 },   // hold 20 VUs for 60s
-    { duration: "15s", target: 0  },   // ramp down
+    { duration: "30s", target: 20 },
+    { duration: "60s", target: 20 },
+    { duration: "15s", target: 0  },
   ],
   thresholds: {
-    // 95th percentile response time under 500ms
     http_req_duration: ["p(95)<500"],
-    // Less than 1% errors overall
     error_rate: ["rate<0.01"],
   },
 };
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 function randomId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
-// ---------------------------------------------------------------------------
-// Default function — runs once per VU per iteration
-// ---------------------------------------------------------------------------
+// Default function
 export default function () {
   const idempotencyKey = `load-test-${randomId()}-${Date.now()}`;
 
@@ -55,7 +44,6 @@ export default function () {
     "Idempotency-Key": idempotencyKey,
   };
 
-  // ── 1. POST /orders ───────────────────────────────────────────────────────
   const createRes = http.post(`${BASE_URL}/orders`, payload, { headers });
 
   createLatency.add(createRes.timings.duration);
@@ -71,7 +59,6 @@ export default function () {
   errorRate.add(!createOk);
 
   if (!createOk) {
-    // Don't attempt GET if POST failed
     sleep(0.5);
     return;
   }
@@ -79,7 +66,6 @@ export default function () {
   orderCreated.add(1);
   const orderId = JSON.parse(createRes.body).order_id;
 
-  // ── 2. GET /orders/:id ────────────────────────────────────────────────────
   const fetchRes = http.get(`${BASE_URL}/orders/${orderId}`);
 
   fetchLatency.add(fetchRes.timings.duration);
@@ -95,7 +81,6 @@ export default function () {
   errorRate.add(!fetchOk);
   if (fetchOk) orderFetched.add(1);
 
-  // ── 3. Health check (10% of iterations) ──────────────────────────────────
   if (Math.random() < 0.1) {
     const healthRes = http.get(`${BASE_URL}/health`);
     check(healthRes, {
@@ -103,12 +88,10 @@ export default function () {
     });
   }
 
-  sleep(0.5); // slight think-time between iterations
+  sleep(0.5);
 }
 
-// ---------------------------------------------------------------------------
 // Summary printed at the end of the test
-// ---------------------------------------------------------------------------
 export function handleSummary(data) {
   const dur   = (t) => (t / 1000).toFixed(2) + "s";
   const ms    = (t) => (t  || 0).toFixed(2)  + "ms";
@@ -150,8 +133,6 @@ Orders fetched : ${d.orders_fetched?.values?.count  || 0}
 `;
 
   console.log(summary);
-
-  // Also write to file so you can paste results into README
   return {
     "loadtest-summary.txt": summary,
     stdout: "\n",
