@@ -1,0 +1,31 @@
+
+========================================
+  k6 Load Test Summary — Orders API
+========================================
+Duration       : ~105s (30s ramp-up, 60s sustained, 15s ramp-down)
+Max VUs        : 20
+
+--- HTTP Overview ---
+Total requests : 6283
+RPS (avg)      : 59.72 req/s
+Failed requests: 0.00%
+
+--- Latency (all requests) ---
+p50            : 0.00ms
+p90            : 37.41ms
+p95            : 42.27ms
+p99            : 0.00ms
+
+--- POST /orders latency ---
+p50            : 0.00ms
+p95            : 48.04ms
+
+--- GET /orders/:id latency ---
+p50            : 0.00ms
+p95            : 27.92ms
+
+--- Counters ---
+Orders created : 3005
+Orders fetched : 3005
+
+========================================

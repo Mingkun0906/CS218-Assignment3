@@ -1,0 +1,15 @@
+# Secrets — never commit real env file
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# SQLite leftovers from HW2 (not used in HW3)
+*.db
+
+# OS
+.DS_Store
