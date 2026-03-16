@@ -1,0 +1,36 @@
+[
+  {
+    "name": "api",
+    "image": "375291433032.dkr.ecr.us-east-2.amazonaws.com/cs218-orders-api:latest",
+    "portMappings": [
+      {"containerPort": 8080, "protocol": "tcp"}
+    ],
+    "environment": [
+      {"name": "DB_HOST", "value": "cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.com"},
+      {"name": "DB_PORT", "value": "5432"},
+      {"name": "DB_NAME", "value": "orders"},
+      {"name": "DB_USER", "value": "orders_user"}
+    ],
+    "secrets": [
+      {
+        "name": "DB_PASSWORD",
+        "valueFrom": "arn:aws:ssm:us-east-2:375291433032:parameter/cs218/orders/db-password"
+      }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/cs218-orders-api",
+        "awslogs-region": "us-east-2",
+        "awslogs-stream-prefix": "ecs"
+      }
+    },
+    "healthCheck": {
+      "command": ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
+      "interval": 15,
+      "timeout": 5,
+      "retries": 3,
+      "startPeriod": 30
+    }
+  }
+]
