@@ -69,6 +69,56 @@ docker compose down
 
 ---
 
+## Local Test Scenarios
+
+### Test 1 — Local Compose Boot + DB-Aware Health Check
+```bash
+docker compose up -d --build
+docker compose run --rm api alembic upgrade head
+curl -i http://localhost:8080/health
+```
+Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
+
+---
+
+### Test 2 — Persistence Across API Restart
+```bash
+# Create an order
+curl -s -X POST http://localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: persist-test-1" \
+  -d '{"customer_id":"cust1","item_id":"item1","quantity":2}'
+
+# Restart the API container
+docker compose restart api
+
+# Fetch the same order — must still exist
+curl -s http://localhost:8080/orders/<order_id_from_above>
+```
+Expected: Record still exists after API restart.
+
+---
+
+### Test 3 — Postgres Volume Persistence
+```bash
+# Restart Postgres
+docker compose restart postgres
+
+# Fetch the same order — must still exist
+curl -s http://localhost:8080/orders/<order_id_from_above>
+```
+Expected: Record still exists after Postgres restart.
+
+---
+
+### Test 6 — Local Load Test (k6)
+```bash
+k6 run loadtest.js
+```
+Expected: Near 0% failed requests. See **Load Test Summary** for results.
+
+---
+
 ## How Migrations Are Executed
 
 Migrations use **Alembic**. The migration files live in `migrations/versions/`.
@@ -264,6 +314,40 @@ docker run --rm \
 
 ---
 
+## AWS Test Scenarios
+
+### Test 4 — AWS Health Endpoint via ALB
+```bash
+BASE_URL=http://cs218-orders-alb-790626801.us-east-2.elb.amazonaws.com
+curl -i $BASE_URL/health
+```
+Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
+
+---
+
+### Test 5 — AWS Write + Read Verification (Proof of Postgres)
+```bash
+BASE_URL=http://cs218-orders-alb-790626801.us-east-2.elb.amazonaws.com
+
+curl -s -X POST $BASE_URL/orders \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: cloud-test-001" \
+  -d '{"customer_id":"cust1","item_id":"item1","quantity":3}'
+
+curl -s $BASE_URL/orders/<order_id>
+```
+Expected: POST returns `order_id`; GET returns the same record from RDS.
+
+---
+
+### CloudWatch Logs (live tail)
+```bash
+aws logs tail /ecs/cs218-orders-api --follow --region us-east-2
+```
+Press `Ctrl+C` to stop. Shows all requests hitting the ECS container in real time.
+
+---
+
 ## Public ALB URL
 
 ```
@@ -321,8 +405,6 @@ k6 run loadtest.js
 
 ## Cleanup (run after demo)
 
-Run these commands after your demo to avoid ongoing AWS charges.
-
 ```bash
 # ECS
 aws ecs update-service --cluster cs218-orders-cluster --service cs218-orders-service --desired-count 0 --region us-east-2
@@ -345,6 +427,3 @@ aws ecr delete-repository --repository-name cs218-orders-api --force --region us
 aws ssm delete-parameter --name "/cs218/orders/db-password" --region us-east-2
 aws logs delete-log-group --log-group-name /ecs/cs218-orders-api --region us-east-2
 ```
-
-
----
