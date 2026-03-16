@@ -1,7 +1,6 @@
 # CS218 Assignment 3 — Containers & Cloud-Native Deployment
 
 ## Demo Video
-<!-- Add your YouTube/video link here -->
 
 ---
 
@@ -9,7 +8,7 @@
 
 ### Prerequisites
 - Docker Desktop installed and running
-- k6 installed (`brew install k6`)
+- `k6` installed (`brew install k6`)
 
 ### 1. Clone the repository
 ```bash
@@ -31,57 +30,27 @@ POSTGRES_PASSWORD=your_password_here
 
 ---
 
-## Docker Compose Instructions
+## Docker Compose & Local Test Scenarios
 
-### Start the full stack
+### Step 1 — Start the full stack
 ```bash
 docker compose up -d --build
 ```
 
-### Run migrations (first time only)
+### Step 2 — Run migrations (first time only)
 ```bash
 docker compose run --rm api alembic upgrade head
 ```
 
-### Verify health
+### Step 3 — Verify health (Test 1)
 ```bash
-curl -i http://localhost:8080/health
-# Expected: {"status":"ok","db":"connected"}
-```
-
-### Create an order
-```bash
-curl -s -X POST http://localhost:8080/orders \
-  -H "Content-Type: application/json" \
-  -H "Idempotency-Key: test-001" \
-  -d '{"customer_id":"cust1","item_id":"item1","quantity":2}'
-```
-
-### Fetch an order
-```bash
-curl -s http://localhost:8080/orders/<order_id>
-```
-
-### Stop the stack
-```bash
-docker compose down
-```
-
----
-
-## Local Test Scenarios
-
-### Test 1 — Local Compose Boot + DB-Aware Health Check
-```bash
-docker compose up -d --build
-docker compose run --rm api alembic upgrade head
 curl -i http://localhost:8080/health
 ```
 Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
 
 ---
 
-### Test 2 — Persistence Across API Restart
+### Step 4 — Persistence across API restart (Test 2)
 ```bash
 # Create an order
 curl -s -X POST http://localhost:8080/orders \
@@ -99,7 +68,7 @@ Expected: Record still exists after API restart.
 
 ---
 
-### Test 3 — Postgres Volume Persistence
+### Step 5 — Postgres volume persistence (Test 3)
 ```bash
 # Restart Postgres
 docker compose restart postgres
@@ -111,11 +80,18 @@ Expected: Record still exists after Postgres restart.
 
 ---
 
-### Test 6 — Local Load Test (k6)
+### Step 6 — Load test (Test 6)
 ```bash
 k6 run loadtest.js
 ```
 Expected: Near 0% failed requests. See **Load Test Summary** for results.
+
+---
+
+### Stop the stack
+```bash
+docker compose down
+```
 
 ---
 
@@ -329,11 +305,13 @@ Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
 ```bash
 BASE_URL=http://cs218-orders-alb-790626801.us-east-2.elb.amazonaws.com
 
+# Write
 curl -s -X POST $BASE_URL/orders \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: cloud-test-001" \
   -d '{"customer_id":"cust1","item_id":"item1","quantity":3}'
 
+# Read back using returned order_id
 curl -s $BASE_URL/orders/<order_id>
 ```
 Expected: POST returns `order_id`; GET returns the same record from RDS.
@@ -403,7 +381,11 @@ k6 run loadtest.js
 | Orders Created | 3,005 |
 | Orders Fetched | 3,005 |
 
-## Cleanup (run after demo)
+**Analysis:** At 20 VUs the API sustained ~60 RPS with p95 latency of 42ms and 0% errors. The bottleneck is the Postgres write path — POST p95 (48ms) is higher than GET p95 (28ms) because each POST performs 3 atomic inserts (orders, ledger, idempotency_records). CPU and network were not limiting factors at this concurrency level.
+
+---
+
+## Cleanup
 
 ```bash
 # ECS
