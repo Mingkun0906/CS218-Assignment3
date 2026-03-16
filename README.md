@@ -37,7 +37,9 @@ POSTGRES_PASSWORD=your_password_here
 docker compose up -d --build
 ```
 
-### Step 2 — Run migrations (first time only)
+### Step 2 — Run migrations
+Migrations use **Alembic**. The migration files live in `migrations/versions/`.
+
 ```bash
 docker compose run --rm api alembic upgrade head
 ```
@@ -95,28 +97,6 @@ docker compose down
 
 ---
 
-## How Migrations Are Executed
-
-Migrations use **Alembic**. The migration files live in `migrations/versions/`.
-
-### Locally
-```bash
-docker compose run --rm api alembic upgrade head
-```
-
-### On AWS (against RDS)
-```bash
-docker run --rm \
-  -e DB_HOST=cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.com \
-  -e DB_PORT=5432 \
-  -e DB_NAME=orders \
-  -e DB_USER=orders_user \
-  -e DB_PASSWORD=<password> \
-  375291433032.dkr.ecr.us-east-2.amazonaws.com/cs218-orders-api:latest \
-  alembic upgrade head
-```
-
----
 
 ## Secrets Handling
 
@@ -154,11 +134,7 @@ docker push \
 
 ### 2. Store DB password in SSM
 ```bash
-aws ssm put-parameter \
-  --name "/cs218/orders/db-password" \
-  --value "<password>" \
-  --type SecureString \
-  --region us-east-2
+aws ssm put-parameter --name "/cs218/orders/db-password" --value <password> --type SecureString --overwrite --region us-east-2
 ```
 
 ### 3. Create RDS Postgres
@@ -169,22 +145,7 @@ aws rds create-db-subnet-group \
   --subnet-ids subnet-0f859e4a09ee2edac subnet-0aa461c9900829dad subnet-0ada00e21a386ced2 \
   --region us-east-2
 
-aws rds create-db-instance \
-  --db-instance-identifier cs218-orders-db \
-  --db-instance-class db.t3.micro \
-  --engine postgres \
-  --engine-version 16.6 \
-  --master-username orders_user \
-  --master-user-password <password> \
-  --db-name orders \
-  --allocated-storage 20 \
-  --no-multi-az \
-  --publicly-accessible \
-  --vpc-security-group-ids sg-0d8645942e95ec25a \
-  --db-subnet-group-name cs218-orders-subnet-group \
-  --backup-retention-period 0 \
-  --no-deletion-protection \
-  --region us-east-2
+aws rds create-db-instance --db-instance-identifier cs218-orders-db --db-instance-class db.t3.micro --engine postgres --engine-version 16.6 --master-username orders_user --master-user-password <password> --db-name orders --allocated-storage 20 --no-multi-az --publicly-accessible --vpc-security-group-ids sg-0d8645942e95ec25a --db-subnet-group-name cs218-orders-subnet-group --backup-retention-period 0 --no-deletion-protection --region us-east-2
 ```
 
 ### 4. Create ECS cluster, IAM role, and CloudWatch log group
