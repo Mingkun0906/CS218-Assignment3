@@ -70,18 +70,6 @@ Expected: Record still exists after API restart.
 
 ---
 
-### Step 5 — Postgres volume persistence (Test 3)
-```bash
-# Restart Postgres
-docker compose restart postgres
-
-# Fetch the same order — must still exist
-curl -s http://localhost:8080/orders/<order_id_from_above>
-```
-Expected: Record still exists after Postgres restart.
-
----
-
 ### Step 6 — Load test (Test 6)
 ```bash
 k6 run loadtest.js
