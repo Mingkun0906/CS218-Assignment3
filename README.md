@@ -9,7 +9,7 @@
 
 ### Prerequisites
 - Docker Desktop installed and running
-- `k6` installed (`brew install k6`)
+- k6 installed (`brew install k6`)
 
 ### 1. Clone the repository
 ```bash
@@ -27,7 +27,7 @@ POSTGRES_DB=orders
 POSTGRES_USER=orders_user
 POSTGRES_PASSWORD=your_password_here
 ```
-> `.env` is gitignored and never committed. See **Secrets Handling** below.
+> `.env` is gitignored and never committed.
 
 ---
 
