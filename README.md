@@ -38,6 +38,7 @@ docker compose up -d --build
 ```
 
 ### Step 2 — Run migrations
+How Migrations Are Executed
 Migrations use **Alembic**. The migration files live in `migrations/versions/`.
 
 ```bash
@@ -54,19 +55,26 @@ Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
 
 ### Step 4 — Persistence across API restart (Test 2)
 ```bash
-# Create an order
 curl -s -X POST http://localhost:8080/orders \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: persist-test-1" \
   -d '{"customer_id":"cust1","item_id":"item1","quantity":2}'
 
-# Restart the API container
 docker compose restart api
 
-# Fetch the same order — must still exist
 curl -s http://localhost:8080/orders/<order_id_from_above>
 ```
 Expected: Record still exists after API restart.
+
+---
+
+### Step 5 — Postgres volume persistence (Test 3)
+```bash
+docker compose restart postgres
+
+curl -s http://localhost:8080/orders/<order_id_from_above>
+```
+Expected: Record still exists after Postgres restart.
 
 ---
 
@@ -84,7 +92,6 @@ docker compose down
 ```
 
 ---
-
 
 ## Secrets Handling
 
@@ -122,7 +129,11 @@ docker push \
 
 ### 2. Store DB password in SSM
 ```bash
-aws ssm put-parameter --name "/cs218/orders/db-password" --value <password> --type SecureString --overwrite --region us-east-2
+aws ssm put-parameter \
+  --name "/cs218/orders/db-password" \
+  --value "<password>" \
+  --type SecureString \
+  --region us-east-2
 ```
 
 ### 3. Create RDS Postgres
@@ -133,7 +144,22 @@ aws rds create-db-subnet-group \
   --subnet-ids subnet-0f859e4a09ee2edac subnet-0aa461c9900829dad subnet-0ada00e21a386ced2 \
   --region us-east-2
 
-aws rds create-db-instance --db-instance-identifier cs218-orders-db --db-instance-class db.t3.micro --engine postgres --engine-version 16.6 --master-username orders_user --master-user-password <password> --db-name orders --allocated-storage 20 --no-multi-az --publicly-accessible --vpc-security-group-ids sg-0d8645942e95ec25a --db-subnet-group-name cs218-orders-subnet-group --backup-retention-period 0 --no-deletion-protection --region us-east-2
+aws rds create-db-instance \
+  --db-instance-identifier cs218-orders-db \
+  --db-instance-class db.t3.micro \
+  --engine postgres \
+  --engine-version 16.6 \
+  --master-username orders_user \
+  --master-user-password <password> \
+  --db-name orders \
+  --allocated-storage 20 \
+  --no-multi-az \
+  --publicly-accessible \
+  --vpc-security-group-ids sg-0d8645942e95ec25a \
+  --db-subnet-group-name cs218-orders-subnet-group \
+  --backup-retention-period 0 \
+  --no-deletion-protection \
+  --region us-east-2
 ```
 
 ### 4. Create ECS cluster, IAM role, and CloudWatch log group
@@ -196,10 +222,10 @@ aws elbv2 create-target-group \
   --region us-east-2
 
 aws elbv2 create-listener \
-  --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:loadbalancer/app/cs218-orders-alb/36d3f63c6c31d2c7 \
+  --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:loadbalancer/app/cs218-orders-alb/0c90b76fedaff9c9 \
   --protocol HTTP \
   --port 80 \
-  --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/838088b58a963a3b \
+  --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/f661db8a90d2dc8f \
   --region us-east-2
 ```
 
@@ -220,18 +246,22 @@ aws ec2 authorize-security-group-ingress \
 aws ecs create-service \
   --cluster cs218-orders-cluster \
   --service-name cs218-orders-service \
-  --task-definition cs218-orders-api:2 \
+  --task-definition cs218-orders-api:3 \
   --desired-count 1 \
   --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[subnet-0f859e4a09ee2edac,subnet-0aa461c9900829dad],securityGroups=[sg-0d8645942e95ec25a],assignPublicIp=ENABLED}" \
-  --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/838088b58a963a3b,containerName=api,containerPort=8080" \
+  --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/f661db8a90d2dc8f,containerName=api,containerPort=8080" \
   --health-check-grace-period-seconds 60 \
   --region us-east-2
 ```
 
 ### 9. Run migrations against RDS
 ```bash
-docker run --rm -e DB_HOST=cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.com -e DB_PORT=5432 -e DB_NAME=orders -e DB_USER=orders_user -e DB_PASSWORD=<password> 375291433032.dkr.ecr.us-east-2.amazonaws.com/cs218-orders-api:latest alembic upgrade head
+docker run --rm \
+  -e DB_HOST=cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.com \
+  -e DB_PORT=5432 -e DB_NAME=orders -e DB_USER=orders_user -e DB_PASSWORD=<password> \
+  375291433032.dkr.ecr.us-east-2.amazonaws.com/cs218-orders-api:latest \
+  alembic upgrade head
 ```
 
 ---
@@ -240,7 +270,7 @@ docker run --rm -e DB_HOST=cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.
 
 ### Test 4 — AWS Health Endpoint via ALB
 ```bash
-BASE_URL=http://cs218-orders-alb-790626801.us-east-2.elb.amazonaws.com
+BASE_URL=http://cs218-orders-alb-78067180.us-east-2.elb.amazonaws.com
 curl -i $BASE_URL/health
 ```
 Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
@@ -249,7 +279,7 @@ Expected: `HTTP 200` with `{"status":"ok","db":"connected"}`
 
 ### Test 5 — AWS Write + Read Verification (Proof of Postgres)
 ```bash
-BASE_URL=http://cs218-orders-alb-790626801.us-east-2.elb.amazonaws.com
+BASE_URL=http://cs218-orders-alb-78067180.us-east-2.elb.amazonaws.com
 
 # Write
 curl -s -X POST $BASE_URL/orders \
@@ -275,7 +305,7 @@ Press `Ctrl+C` to stop. Shows all requests hitting the ECS container in real tim
 ## Public ALB URL
 
 ```
-http://cs218-orders-alb-790626801.us-east-2.elb.amazonaws.com
+http://cs218-orders-alb-78067180.us-east-2.elb.amazonaws.com
 ```
 
 ---
@@ -331,7 +361,8 @@ k6 run loadtest.js
 
 ---
 
-## Cleanup
+## Cleanup (run after demo)
+
 
 ```bash
 # ECS
@@ -340,9 +371,9 @@ aws ecs delete-service --cluster cs218-orders-cluster --service cs218-orders-ser
 aws ecs delete-cluster --cluster cs218-orders-cluster --region us-east-2
 
 # ALB
-aws elbv2 delete-listener --listener-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:listener/app/cs218-orders-alb/36d3f63c6c31d2c7/6df2071b7ea95c94 --region us-east-2
-aws elbv2 delete-load-balancer --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:loadbalancer/app/cs218-orders-alb/36d3f63c6c31d2c7 --region us-east-2
-aws elbv2 delete-target-group --target-group-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/838088b58a963a3b --region us-east-2
+aws elbv2 delete-listener --listener-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:listener/app/cs218-orders-alb/0c90b76fedaff9c9/7c66c46942f1bb22 --region us-east-2
+aws elbv2 delete-load-balancer --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:loadbalancer/app/cs218-orders-alb/0c90b76fedaff9c9 --region us-east-2
+aws elbv2 delete-target-group --target-group-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/f661db8a90d2dc8f --region us-east-2
 
 # RDS
 aws rds delete-db-instance --db-instance-identifier cs218-orders-db --skip-final-snapshot --region us-east-2
