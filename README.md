@@ -242,11 +242,7 @@ aws ecs create-service \
 
 ### 9. Run migrations against RDS
 ```bash
-docker run --rm \
-  -e DB_HOST=cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.com \
-  -e DB_PORT=5432 -e DB_NAME=orders -e DB_USER=orders_user -e DB_PASSWORD=<password> \
-  375291433032.dkr.ecr.us-east-2.amazonaws.com/cs218-orders-api:latest \
-  alembic upgrade head
+docker run --rm -e DB_HOST=cs218-orders-db.cp6wa6emww29.us-east-2.rds.amazonaws.com -e DB_PORT=5432 -e DB_NAME=orders -e DB_USER=orders_user -e DB_PASSWORD=<password> 375291433032.dkr.ecr.us-east-2.amazonaws.com/cs218-orders-api:latest alembic upgrade head
 ```
 
 ---
