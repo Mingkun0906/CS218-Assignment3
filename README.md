@@ -345,19 +345,40 @@ k6 run loadtest.js
 
 **Configuration:** 20 VUs — 30s ramp-up, 60s sustained, 15s ramp-down (~105s total)
 
-| Metric | Value |
-|---|---|
-| Total Requests | 6,283 |
-| RPS (avg) | 59.72 req/s |
-| Failed Requests | 0.00% |
-| p90 latency | 37.41ms |
-| p95 latency | 42.27ms |
-| POST /orders p95 | 48.04ms |
-| GET /orders/:id p95 | 27.92ms |
-| Orders Created | 3,005 |
-| Orders Fetched | 3,005 |
 
-**Analysis:** At 20 VUs the API sustained ~60 RPS with p95 latency of 42ms and 0% errors. The bottleneck is the Postgres write path — POST p95 (48ms) is higher than GET p95 (28ms) because each POST performs 3 atomic inserts (orders, ledger, idempotency_records). CPU and network were not limiting factors at this concurrency level.
+========================================
+  k6 Load Test Summary — Orders API
+========================================
+Duration       : ~105s (30s ramp-up, 60s sustained, 15s ramp-down)
+Max VUs        : 20
+
+--- HTTP Overview ---
+Total requests : 6194
+RPS (avg)      : 58.77 req/s
+Failed requests: 0.00%
+
+--- Latency (all requests) ---
+p50            : 0.00ms
+p90            : 48.44ms
+p95            : 63.59ms
+p99            : 0.00ms
+
+--- POST /orders latency ---
+p50            : 0.00ms
+p95            : 75.78ms
+
+--- GET /orders/:id latency ---
+p50            : 0.00ms
+p95            : 43.88ms
+
+--- Counters ---
+Orders created : 2949
+Orders fetched : 2949
+
+========================================
+
+
+
 
 ---
 
