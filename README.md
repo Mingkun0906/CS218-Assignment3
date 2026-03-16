@@ -319,4 +319,32 @@ k6 run loadtest.js
 | Orders Created | 3,005 |
 | Orders Fetched | 3,005 |
 
+## Cleanup (run after demo)
+
+> ⚠️ Run these commands after your demo to avoid ongoing AWS charges.
+
+```bash
+# ECS
+aws ecs update-service --cluster cs218-orders-cluster --service cs218-orders-service --desired-count 0 --region us-east-2
+aws ecs delete-service --cluster cs218-orders-cluster --service cs218-orders-service --region us-east-2
+aws ecs delete-cluster --cluster cs218-orders-cluster --region us-east-2
+
+# ALB
+aws elbv2 delete-listener --listener-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:listener/app/cs218-orders-alb/36d3f63c6c31d2c7/6df2071b7ea95c94 --region us-east-2
+aws elbv2 delete-load-balancer --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:loadbalancer/app/cs218-orders-alb/36d3f63c6c31d2c7 --region us-east-2
+aws elbv2 delete-target-group --target-group-arn arn:aws:elasticloadbalancing:us-east-2:375291433032:targetgroup/cs218-orders-tg/838088b58a963a3b --region us-east-2
+
+# RDS
+aws rds delete-db-instance --db-instance-identifier cs218-orders-db --skip-final-snapshot --region us-east-2
+aws rds delete-db-subnet-group --db-subnet-group-name cs218-orders-subnet-group --region us-east-2
+
+# ECR
+aws ecr delete-repository --repository-name cs218-orders-api --force --region us-east-2
+
+# SSM + CloudWatch
+aws ssm delete-parameter --name "/cs218/orders/db-password" --region us-east-2
+aws logs delete-log-group --log-group-name /ecs/cs218-orders-api --region us-east-2
+```
+
+
 ---
