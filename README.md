@@ -13,7 +13,7 @@
 
 ### 1. Clone the repository
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Mingkun0906/CS218-Assignment3.git
 cd CS218-Assignment3
 ```
 
@@ -27,7 +27,7 @@ POSTGRES_DB=orders
 POSTGRES_USER=orders_user
 POSTGRES_PASSWORD=your_password_here
 ```
-> `.env` is gitignored and never committed.
+`.env` is gitignored and never committed.
 
 ---
 
@@ -318,7 +318,5 @@ k6 run loadtest.js
 | GET /orders/:id p95 | 27.92ms |
 | Orders Created | 3,005 |
 | Orders Fetched | 3,005 |
-
-**Analysis:** At 20 VUs the API sustained ~60 RPS with p95 latency of 42ms and 0% errors. The bottleneck is the Postgres write path — POST p95 (48ms) is higher than GET p95 (28ms) because each POST performs 3 atomic inserts (orders, ledger, idempotency_records). CPU and network were not limiting factors at this concurrency level.
 
 ---
