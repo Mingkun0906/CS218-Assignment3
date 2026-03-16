@@ -321,7 +321,7 @@ k6 run loadtest.js
 
 ## Cleanup (run after demo)
 
-> ⚠️ Run these commands after your demo to avoid ongoing AWS charges.
+Run these commands after your demo to avoid ongoing AWS charges.
 
 ```bash
 # ECS
