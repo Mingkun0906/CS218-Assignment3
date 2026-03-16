@@ -140,21 +140,6 @@ aws rds create-db-instance --db-instance-identifier cs218-orders-db --db-instanc
 ```bash
 aws ecs create-cluster --cluster-name cs218-orders-cluster --region us-east-2
 
-aws iam create-role \
-  --role-name cs218EcsTaskExecutionRole \
-  --assume-role-policy-document '{
-    "Version":"2012-10-17",
-    "Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]
-  }'
-
-aws iam attach-role-policy \
-  --role-name cs218EcsTaskExecutionRole \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-
-aws iam attach-role-policy \
-  --role-name cs218EcsTaskExecutionRole \
-  --policy-arn arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
-
 aws logs create-log-group --log-group-name /ecs/cs218-orders-api --region us-east-2
 ```
 
